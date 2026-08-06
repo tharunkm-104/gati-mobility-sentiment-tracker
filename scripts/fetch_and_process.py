@@ -1,30 +1,26 @@
-import os, csv, json, io
+import os, csv, json, io, re
 import requests
 
-API_KEY = os.environ["GDRIVE_API_KEY"]
-FOLDER_ID = os.environ["GDRIVE_FOLDER_ID"]
-DRIVE_API = "https://www.googleapis.com/drive/v3"
+TOKEN = os.environ["SLACK_BOT_TOKEN"]
+CHANNEL = os.environ["SLACK_CHANNEL_ID"]
+HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
 FIELDNAMES = ["date", "headline", "url", "categories", "summary", "vibe", "in_top7", "source"]
 
 
-def list_csv_files():
-    """List every CSV Cowork has dropped in the shared Drive folder."""
-    params = {
-        "q": f"'{FOLDER_ID}' in parents and mimeType='text/csv' and trashed=false",
-        "fields": "files(id,name,modifiedTime)",
-        "key": API_KEY,
-        "pageSize": 1000,
-    }
-    r = requests.get(f"{DRIVE_API}/files", params=params)
-    r.raise_for_status()
-    return r.json().get("files", [])
-
-
-def download_file(file_id):
-    r = requests.get(f"{DRIVE_API}/files/{file_id}", params={"alt": "media", "key": API_KEY})
-    r.raise_for_status()
-    return r.text
+def get_today_csv_block():
+    """Find the most recent message containing a fenced ```csv block."""
+    resp = requests.get(
+        "https://slack.com/api/conversations.history",
+        headers=HEADERS,
+        params={"channel": CHANNEL, "limit": 5},
+    ).json()
+    for msg in resp.get("messages", []):
+        text = msg.get("text", "")
+        m = re.search(r"```csv\s*(.*?)\s*```", text, re.DOTALL)
+        if m:
+            return m.group(1)
+    return None
 
 
 def load_items_csv(path):
@@ -47,28 +43,22 @@ def main():
     items = load_items_csv("data/items.csv")
     seen_urls = {row["url"] for row in items if row.get("url")}
 
-    files = list_csv_files()
-    print(f"Found {len(files)} CSV file(s) in Drive folder.")
-
+    csv_text = get_today_csv_block()
     added = 0
-    for f in files:
-        try:
-            content = download_file(f["id"])
-        except Exception as e:
-            print(f"  skip {f['name']}: {e}")
-            continue
-        for row in csv.DictReader(io.StringIO(content)):
+    if csv_text:
+        for row in csv.DictReader(io.StringIO(csv_text)):
             url = (row.get("url") or "").strip()
             if not url or url in seen_urls:
                 continue  # dedup — safe to re-run this script any time
             items.append({k: (row.get(k) or "").strip() for k in FIELDNAMES})
             seen_urls.add(url)
             added += 1
+        print(f"Added {added} new item(s). Total logged: {len(items)}.")
+    else:
+        print("No CSV block found in recent messages — skipping (gap will show in chart).")
 
-    print(f"Added {added} new item(s). Total logged: {len(items)}.")
     save_items_csv("data/items.csv", items)
 
-    # ---- rebuild the aggregate the frontend reads — unaffected by CSV vs JSON upstream ----
     by_date = {}
     for row in items:
         d = row.get("date", "").strip()
@@ -81,7 +71,7 @@ def main():
         elif vibe == "negative":
             bucket["red"] += 1
         else:
-            bucket["yellow"] += 1  # "neutral" or anything unexpected defaults here
+            bucket["yellow"] += 1
 
     summary = [
         {"date": d, **by_date[d], "total": sum(by_date[d].values())}
