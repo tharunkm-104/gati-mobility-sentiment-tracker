@@ -2,8 +2,8 @@ name: Daily sentiment update
 
 on:
   schedule:
-    - cron: "45 4 * * 1-5"   # ~10:15 AM IST, weekdays — after Cowork's 9:00 AM run
-  workflow_dispatch: {}       # lets you trigger it manually from the Actions tab
+    - cron: "30 4 * * 1-5"   # 4:30 UTC = ~10:00 AM IST, weekdays
+  workflow_dispatch: {}       # lets you click "Run workflow" manually to test
 
 permissions:
   contents: write
@@ -18,12 +18,12 @@ jobs:
         with:
           python-version: "3.11"
 
-      - run: pip install requests
+      - run: pip install -r scripts/requirements.txt
 
       - run: python scripts/fetch_and_process.py
         env:
-          GDRIVE_API_KEY: ${{ secrets.GDRIVE_API_KEY }}
-          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
 
       - name: Commit updated data
         run: |
