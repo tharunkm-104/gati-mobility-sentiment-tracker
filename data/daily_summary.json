@@ -250,5 +250,54 @@
     "yellow": 3,
     "red": 3,
     "total": 6
+  },
+  {
+    "date": "2026-09-03",
+    "green": 0,
+    "yellow": 2,
+    "red": 1,
+    "total": 3
+  },
+  {
+    "date": "2026-09-04",
+    "green": 1,
+    "yellow": 0,
+    "red": 0,
+    "total": 1
+  },
+  {
+    "date": "2026-09-05",
+    "green": 0,
+    "yellow": 0,
+    "red": 1,
+    "total": 1
+  },
+  {
+    "date": "2026-09-07",
+    "green": 0,
+    "yellow": 1,
+    "red": 2,
+    "total": 3
+  },
+  {
+    "date": "2026-09-08",
+    "green": 1,
+    "yellow": 0,
+    "red": 0,
+    "total": 1
+  },
+  {
+    "date": "2026-09-09",
+    "green": 0,
+    "yellow": 2,
+    "red": 0,
+    "total": 2
+  },
+  {
+    "date": "2026-09-15",
+    "green": 3,
+    "yellow": 1,
+    "red": 2,
+    "total": 6
   }
 ]
