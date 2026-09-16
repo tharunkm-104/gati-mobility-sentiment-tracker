@@ -8,20 +8,45 @@ HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 FIELDNAMES = ["date", "headline", "url", "categories", "summary", "vibe", "in_top7", "source"]
 
 
-def get_today_csv_block():
+# Slack's mrkdwn has no concept of a fenced-code "language" tag (unlike GitHub
+# Markdown), so a message posted as ```csv ... ``` and one posted as ``` ... ```
+# are indistinguishable once they hit the API — Cowork may or may not include
+# the "csv" tag literally. Anchor on the actual header row instead of the tag.
+CSV_FENCE_RE = re.compile(
+    r"```(?:csv)?\s*\n?"
+    r"(date,headline,url,categories,summary,vibe,in_top7,source.*?)"
+    r"\s*```",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def get_all_csv_blocks(limit=50):
+    """Return every CSV block found in the recent channel history (newest first).
+
+    Returns all matches, not just the latest one — if the workflow has been
+    silently failing for several days, there can be a backlog of unprocessed
+    blocks sitting in the channel, and only picking the newest would silently
+    drop the rest.
+    """
     resp = requests.get(
         "https://slack.com/api/conversations.history",
         headers=HEADERS,
-        params={"channel": CHANNEL, "limit": 5},
+        params={"channel": CHANNEL, "limit": limit},
     ).json()
+
     if not resp.get("ok"):
-        raise RuntimeError(f"Slack API error: {resp.get('error')}")
+        raise RuntimeError(
+            f"Slack API error: {resp.get('error')} "
+            f"(check bot token scope, channel ID, and that the bot is invited to the channel)"
+        )
+
+    blocks = []
     for msg in resp.get("messages", []):
         text = msg.get("text", "")
-        m = re.search(r"```csv\s*(.*?)\s*```", text, re.DOTALL)
+        m = CSV_FENCE_RE.search(text)
         if m:
-            return m.group(1)
-    return None
+            blocks.append(m.group(1))
+    return blocks
 
 
 def load_items_csv(path):
@@ -44,19 +69,20 @@ def main():
     items = load_items_csv("data/items.csv")
     seen_urls = {row["url"] for row in items if row.get("url")}
 
-    csv_text = get_today_csv_block()
+    blocks = get_all_csv_blocks()
     added = 0
-    if csv_text:
-        for row in csv.DictReader(io.StringIO(csv_text)):
-            url = (row.get("url") or "").strip()
-            if not url or url in seen_urls:
-                continue  # dedup — safe to re-run this script any time
-            items.append({k: (row.get(k) or "").strip() for k in FIELDNAMES})
-            seen_urls.add(url)
-            added += 1
-        print(f"Added {added} new item(s). Total logged: {len(items)}.")
+    if blocks:
+        for csv_text in blocks:
+            for row in csv.DictReader(io.StringIO(csv_text)):
+                url = (row.get("url") or "").strip()
+                if not url or url in seen_urls:
+                    continue  # dedup — safe to re-run this script any time
+                items.append({k: (row.get(k) or "").strip() for k in FIELDNAMES})
+                seen_urls.add(url)
+                added += 1
+        print(f"Added {added} new item(s) from {len(blocks)} block(s). Total logged: {len(items)}.")
     else:
-        print("No CSV block found in recent messages — skipping (gap will show in chart).")
+        print("No CSV blocks found in recent messages — skipping (gap will show in chart).")
 
     save_items_csv("data/items.csv", items)
 
