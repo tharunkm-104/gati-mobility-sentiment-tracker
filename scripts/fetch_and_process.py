@@ -9,12 +9,13 @@ FIELDNAMES = ["date", "headline", "url", "categories", "summary", "vibe", "in_to
 
 
 def get_today_csv_block():
-    """Find the most recent message containing a fenced ```csv block."""
     resp = requests.get(
         "https://slack.com/api/conversations.history",
         headers=HEADERS,
         params={"channel": CHANNEL, "limit": 5},
     ).json()
+    if not resp.get("ok"):
+        raise RuntimeError(f"Slack API error: {resp.get('error')}")
     for msg in resp.get("messages", []):
         text = msg.get("text", "")
         m = re.search(r"```csv\s*(.*?)\s*```", text, re.DOTALL)
