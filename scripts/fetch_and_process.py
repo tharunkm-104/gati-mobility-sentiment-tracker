@@ -55,6 +55,15 @@ def load_items_csv(path):
     with open(path, newline="", encoding="utf-8") as f:
         return list(csv.DictReader(f))
 
+def normalize_date(d):
+    """Coerce any DD-MM-YYYY straggler back to the canonical YYYY-MM-DD."""
+    if re.match(r"^\d{4}-\d{2}-\d{2}$", d):
+        return d
+    m = re.match(r"^(\d{2})-(\d{2})-(\d{4})$", d)
+    if m:
+        dd, mm, yyyy = m.groups()
+        return f"{yyyy}-{mm}-{dd}"
+    return d  # unrecognized — leave as-is but consider logging/flagging this case
 
 def save_items_csv(path, rows):
     os.makedirs(os.path.dirname(path), exist_ok=True)
