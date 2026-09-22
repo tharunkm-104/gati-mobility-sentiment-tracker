@@ -344,9 +344,16 @@
   },
   {
     "date": "2026-09-21",
+    "green": 2,
+    "yellow": 3,
+    "red": 4,
+    "total": 9
+  },
+  {
+    "date": "2026-09-22",
     "green": 0,
-    "yellow": 1,
-    "red": 0,
+    "yellow": 0,
+    "red": 1,
     "total": 1
   }
 ]
