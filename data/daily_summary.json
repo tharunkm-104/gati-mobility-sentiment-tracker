@@ -352,8 +352,8 @@
   {
     "date": "2026-09-22",
     "green": 0,
-    "yellow": 0,
+    "yellow": 5,
     "red": 1,
-    "total": 1
+    "total": 6
   }
 ]
